@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+param=$(for i in "$*"; do echo "$i"; done;)
+
+ext=$(echo $param | cut -d ' ' -f 1)
+path=$(echo $param | cut -d ' ' -f 2-)
+
+cd "$path" 1>&- 2>&-
+ext=$ext
+mainsec=0
+for j in *.$ext; do 
+    count=1
+    sec=0
+    time=$(ffmpeg -i "$path/$j" 2>&1 | grep Duration | awk '{print $2}' | cut -d ',' -f 1 | cut -d '.' -f 1)
+    for i in $(echo "$time" | sed 's/:/ /g'); do 
+        if [[ $count = 1 ]]; then 
+            sec=$(echo "$i * 3600 + $sec" | bc)
+        elif [[ $count = 2 ]]; then 
+            sec=$(echo "$i * 60 + $sec" | bc)
+        else 
+            sec=$(echo "$i + $sec" | bc)
+        fi
+        count=$(($count + 1))
+    done
+    mainsec=$(echo "$mainsec + $sec" | bc)
+    echo "Done $j - Time $time"
+done
+echo "$mainsec seconds"
+printf '%dh:%dm:%ds\n' $((mainsec/3600)) $((mainsec%3600/60)) $((mainsec%60))
+
+cd "-" 1>&- 2>&-
